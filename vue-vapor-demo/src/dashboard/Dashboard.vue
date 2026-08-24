@@ -5,6 +5,48 @@ import { ACTIONS, MESSAGE_TYPES, RENDERERS } from '../shared/protocol.js'
 import { calculateRatio, calculateStats } from '../shared/stats.js'
 
 const REQUEST_TIMEOUT_MS = 180_000
+const TRANSLATIONS = Object.freeze({
+  en: {
+    settings: {
+      rows: 'Rows',
+      warmup: 'Warmup Runs',
+      measured: 'Measured Runs',
+      seed: 'Seed',
+    },
+    actions: {
+      'initial-render': 'Initial Render',
+      'update-10-percent': 'Update 10%',
+      'update-all': 'Update All',
+      'append-1000': 'Append 1,000',
+      'remove-1000': 'Remove 1,000',
+      shuffle: 'Shuffle',
+    },
+    reset: 'Reset',
+    emptyResult: 'Run an action to measure this renderer.',
+    ratio: 'RATIO',
+    ratioFormula: 'Vapor avg / VDOM avg',
+  },
+  'zh-TW': {
+    settings: {
+      rows: '資料筆數',
+      warmup: '暖身次數',
+      measured: '測量次數',
+      seed: '隨機種子',
+    },
+    actions: {
+      'initial-render': '初始渲染',
+      'update-10-percent': '更新 10%',
+      'update-all': '全部更新',
+      'append-1000': '新增 1,000',
+      'remove-1000': '移除 1,000',
+      shuffle: '重新排序',
+    },
+    reset: '重設',
+    emptyResult: '執行一項操作以測量此渲染器。',
+    ratio: '比率',
+    ratioFormula: 'Vapor 平均值 / VDOM 平均值',
+  },
+})
 const frameRefs = {
   vdom: ref(null),
   vapor: ref(null),
@@ -23,11 +65,13 @@ const currentAction = ref('')
 const currentRenderer = ref('')
 const currentProgress = ref('Waiting for renderers')
 const errorMessage = ref('')
+const locale = ref('en')
 const pending = new Map()
 let requestSequence = 0
 let operationSequence = 0
 
 const bothReady = computed(() => ready.vdom && ready.vapor)
+const copy = computed(() => TRANSLATIONS[locale.value])
 const vueVersion = computed(() => childVersions.vdom || childVersions.vapor || version)
 const ratio = computed(() => calculateRatio(results.vapor, results.vdom))
 const statusLabel = computed(() => {
@@ -39,6 +83,10 @@ const statusLabel = computed(() => {
 
 function setFrameRef(renderer, element) {
   frameRefs[renderer].value = element
+}
+
+function toggleLanguage() {
+  locale.value = locale.value === 'en' ? 'zh-TW' : 'en'
 }
 
 function rendererForSource(source) {
@@ -216,13 +264,21 @@ onBeforeUnmount(() => {
           <span class="status-dot"></span>
           {{ statusLabel }}
         </span>
+        <button
+          class="language-toggle"
+          type="button"
+          :aria-label="locale === 'en' ? '切換為中文' : 'Switch to English'"
+          @click="toggleLanguage"
+        >
+          {{ locale === 'en' ? '中文' : 'EN' }}
+        </button>
       </div>
     </header>
 
     <section class="control-panel" aria-label="Benchmark controls">
       <div class="settings-grid">
         <label>
-          <span>Rows</span>
+          <span>{{ copy.settings.rows }}</span>
           <select v-model.number="settings.count" :disabled="busy">
             <option v-for="count in ROW_COUNTS" :key="count" :value="count">
               {{ count.toLocaleString() }}
@@ -230,15 +286,15 @@ onBeforeUnmount(() => {
           </select>
         </label>
         <label>
-          <span>Warmup Runs</span>
+          <span>{{ copy.settings.warmup }}</span>
           <input v-model.number="settings.warmup" type="number" min="0" max="10" :disabled="busy" />
         </label>
         <label>
-          <span>Measured Runs</span>
+          <span>{{ copy.settings.measured }}</span>
           <input v-model.number="settings.runs" type="number" min="1" max="30" :disabled="busy" />
         </label>
-        <label>
-          <span>Seed</span>
+        <!-- <label>
+          <span>{{ copy.settings.seed }}</span>
           <input
             v-model.number="settings.seed"
             type="number"
@@ -246,7 +302,7 @@ onBeforeUnmount(() => {
             max="4294967295"
             :disabled="busy"
           />
-        </label>
+        </label> -->
       </div>
 
       <div class="action-bar">
@@ -258,10 +314,10 @@ onBeforeUnmount(() => {
           :class="{ selected: currentAction === action.id }"
           @click="runAction(action.id)"
         >
-          {{ action.label }}
+          {{ copy.actions[action.id] }}
         </button>
         <button class="reset-button" type="button" :disabled="!bothReady" @click="resetBenchmark">
-          Reset
+          {{ copy.reset }}
         </button>
       </div>
     </section>
@@ -297,13 +353,13 @@ onBeforeUnmount(() => {
           <div><dt>min</dt><dd>{{ formatMs(results[renderer].min) }}</dd></div>
           <div><dt>max</dt><dd>{{ formatMs(results[renderer].max) }}</dd></div>
         </dl>
-        <p v-else class="empty-result">Run an action to measure this renderer.</p>
+        <p v-else class="empty-result">{{ copy.emptyResult }}</p>
       </article>
 
       <article class="ratio-card">
-        <span class="result-renderer">RATIO</span>
+        <span class="result-renderer">{{ copy.ratio }}</span>
         <strong>{{ ratio === null ? '—' : ratio.toFixed(3) }}</strong>
-        <span>Vapor avg / VDOM avg</span>
+        <span>{{ copy.ratioFormula }}</span>
       </article>
     </section>
 

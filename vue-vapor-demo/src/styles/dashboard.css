@@ -103,6 +103,35 @@ select {
   box-shadow: 0 0 0 4px rgb(255 197 95 / 11%);
 }
 
+.language-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid #253754;
+  border-radius: 999px;
+  outline: none;
+  color: #c9d6e9;
+  background: rgb(17 29 48 / 82%);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  transition: 120ms ease;
+}
+
+.language-toggle:hover,
+.language-toggle:focus-visible {
+  border-color: #608fe6;
+  color: #ffffff;
+  background: #19345d;
+}
+
+.language-toggle:focus-visible {
+  box-shadow: 0 0 0 3px rgb(94 144 239 / 16%);
+}
+
 .control-panel {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
