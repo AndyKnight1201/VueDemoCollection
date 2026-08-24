@@ -1,0 +1,135 @@
+:root {
+  color: #e7eefb;
+  background: #08101e;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.renderer-shell {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  background:
+    radial-gradient(circle at 90% 0%, rgb(58 125 255 / 12%), transparent 42%),
+    #0b1424;
+}
+
+.renderer-shell[data-renderer='vapor'] {
+  background:
+    radial-gradient(circle at 90% 0%, rgb(63 220 181 / 12%), transparent 42%),
+    #0b1424;
+}
+
+.renderer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #20304a;
+}
+
+.renderer-kicker {
+  color: #7f90aa;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.renderer-header h1 {
+  margin: 2px 0 0;
+  color: #f8fbff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.renderer-meta {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 4px;
+  color: #9caec7;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.renderer-status {
+  color: #70e0bb;
+}
+
+.renderer-status.running {
+  color: #ffcf67;
+}
+
+.renderer-error {
+  margin: 0;
+  padding: 7px 14px;
+  color: #ffb5bd;
+  background: #471a25;
+  font-size: 11px;
+}
+
+.row-list {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: #334665 #101a2b;
+}
+
+.data-row {
+  display: grid;
+  grid-template-columns: 72px minmax(105px, 1.4fr) minmax(70px, 0.8fr) 82px 72px 62px;
+  align-items: center;
+  min-width: 520px;
+  min-height: 27px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgb(69 91 125 / 25%);
+  color: #cfdaea;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-row:nth-child(even) {
+  background: rgb(255 255 255 / 1.6%);
+}
+
+.data-row.inactive {
+  color: #73839a;
+}
+
+.cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.id-cell,
+.score-cell {
+  color: #7fa9ff;
+}
+
+.renderer-shell[data-renderer='vapor'] .id-cell,
+.renderer-shell[data-renderer='vapor'] .score-cell {
+  color: #57d9b3;
+}
+
+.active-cell {
+  text-align: right;
+}
