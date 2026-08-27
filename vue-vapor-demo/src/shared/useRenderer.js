@@ -6,8 +6,8 @@ import {
 } from './benchmark.js'
 import {
   MESSAGE_TYPES,
-  validateResetPayload,
   validateRunPayload,
+  validateStopPayload,
 } from './protocol.js'
 
 const DEFAULT_COUNT = 10_000
@@ -93,34 +93,25 @@ export function useRenderer(renderer) {
     }
   }
 
-  async function handleReset(payload) {
-    const validation = validateResetPayload(payload)
+  function handleStop(payload) {
+    const validation = validateStopPayload(payload)
     if (!validation.ok) {
       postError(payload?.requestId ?? 'invalid-request', new TypeError(validation.error))
       return
     }
 
     generation += 1
-    const resetGeneration = generation
     running = false
     errorMessage.value = ''
-    status.value = 'Resetting'
+    status.value = 'Ready'
     progress.value = { phase: 'idle', current: 0, total: 0 }
-
-    try {
-      await resetRows(rows, payload.count, payload.seed)
-      if (generation !== resetGeneration) return
-      status.value = 'Ready'
-      post({ type: MESSAGE_TYPES.RESET_DONE, requestId: payload.requestId })
-    } catch (error) {
-      if (generation === resetGeneration) postError(payload.requestId, error)
-    }
+    post({ type: MESSAGE_TYPES.STOP_DONE, requestId: payload.requestId })
   }
 
   function handleMessage(event) {
     if (event.source !== window.parent || event.origin !== window.location.origin) return
     if (event.data?.type === MESSAGE_TYPES.RUN_BENCHMARK) void handleRun(event.data)
-    if (event.data?.type === MESSAGE_TYPES.RESET) void handleReset(event.data)
+    if (event.data?.type === MESSAGE_TYPES.STOP_BENCHMARK) handleStop(event.data)
   }
 
   onMounted(async () => {

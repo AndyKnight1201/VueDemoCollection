@@ -21,8 +21,11 @@ const TRANSLATIONS = Object.freeze({
       'remove-1000': 'Remove 1,000',
       shuffle: 'Shuffle',
     },
-    reset: 'Reset',
+    stopTest: 'Stop Test',
+    stopping: 'Stopping…',
+    clearRecords: 'Clear Records',
     emptyResult: 'Run an action to measure this renderer.',
+    emptyRatio: 'Complete a test to build the ratio trend.',
     ratio: 'RATIO',
     ratioFormula: 'Vapor avg / VDOM avg',
   },
@@ -41,8 +44,11 @@ const TRANSLATIONS = Object.freeze({
       'remove-1000': '移除 1,000',
       shuffle: '重新排序',
     },
-    reset: '重設',
+    stopTest: '停止測試',
+    stopping: '停止中…',
+    clearRecords: '清除紀錄',
     emptyResult: '執行一項操作以測量此渲染器。',
+    emptyRatio: '完成測試後將顯示比率趨勢。',
     ratio: '比率',
     ratioFormula: 'Vapor 平均值 / VDOM 平均值',
   },
@@ -59,8 +65,9 @@ const settings = reactive({
   runs: 10,
   seed: 2026,
 })
-const results = reactive({ vdom: null, vapor: null })
+const history = ref([])
 const busy = ref(false)
+const stopping = ref(false)
 const currentAction = ref('')
 const currentRenderer = ref('')
 const currentProgress = ref('Waiting for renderers')
@@ -69,11 +76,59 @@ const locale = ref('en')
 const pending = new Map()
 let requestSequence = 0
 let operationSequence = 0
+let historySequence = 0
+
+const CHART_HEIGHT = 260
+const CHART_HORIZONTAL_PADDING = 42
+const CHART_TOP_PADDING = 38
+const CHART_BOTTOM_PADDING = 26
+const CHART_POINT_GAP = 84
 
 const bothReady = computed(() => ready.vdom && ready.vapor)
 const copy = computed(() => TRANSLATIONS[locale.value])
 const vueVersion = computed(() => childVersions.vdom || childVersions.vapor || version)
-const ratio = computed(() => calculateRatio(results.vapor, results.vdom))
+const ratioChart = computed(() => {
+  const entries = [...history.value].reverse()
+  const width = Math.max(
+    280,
+    CHART_HORIZONTAL_PADDING * 2 + Math.max(entries.length - 1, 0) * CHART_POINT_GAP,
+  )
+
+  if (entries.length === 0) return { height: CHART_HEIGHT, points: [], polyline: '', width }
+
+  const values = entries.map(({ ratio }) => ratio)
+  const minimum = Math.min(...values)
+  const maximum = Math.max(...values)
+  const span = maximum - minimum
+  const drawableHeight = CHART_HEIGHT - CHART_TOP_PADDING - CHART_BOTTOM_PADDING
+
+  const points = entries.map((entry, index) => {
+    const firstPointX = (width - Math.max(entries.length - 1, 0) * CHART_POINT_GAP) / 2
+    const x =
+      entries.length === 1
+        ? width / 2
+        : firstPointX + index * CHART_POINT_GAP
+    const y =
+      span === 0
+        ? CHART_TOP_PADDING + drawableHeight / 2
+        : CHART_TOP_PADDING + ((maximum - entry.ratio) / span) * drawableHeight
+
+    return {
+      id: entry.id,
+      label: entry.ratio.toFixed(3),
+      value: entry.ratio,
+      x,
+      y,
+    }
+  })
+
+  return {
+    height: CHART_HEIGHT,
+    points,
+    polyline: points.map(({ x, y }) => `${x},${y}`).join(' '),
+    width,
+  }
+})
 const statusLabel = computed(() => {
   if (busy.value) return currentProgress.value
   if (bothReady.value) return 'Ready'
@@ -129,7 +184,7 @@ function handleMessage(event) {
       break
     }
     case MESSAGE_TYPES.BENCHMARK_RESULT:
-    case MESSAGE_TYPES.RESET_DONE:
+    case MESSAGE_TYPES.STOP_DONE:
       settlePending(message)
       break
     case MESSAGE_TYPES.BENCHMARK_ERROR:
@@ -155,10 +210,10 @@ function sendRequest(renderer, type, payload) {
   })
 }
 
-function cancelPendingRequests() {
+function cancelPendingRequests(reason = 'Operation cancelled') {
   for (const [requestId, entry] of pending) {
     clearTimeout(entry.timeout)
-    entry.reject(new Error('Operation cancelled by reset'))
+    entry.reject(new Error(reason))
     pending.delete(requestId)
   }
 }
@@ -171,8 +226,7 @@ async function runAction(action) {
   busy.value = true
   errorMessage.value = ''
   currentAction.value = action
-  results.vdom = null
-  results.vapor = null
+  const nextResult = {}
 
   try {
     for (const renderer of RENDERERS) {
@@ -188,9 +242,23 @@ async function runAction(action) {
         runs: settings.runs,
         seed: settings.seed,
       })
-      results[renderer] = calculateStats(response.values)
+      nextResult[renderer] = {
+        samples: response.values.length,
+        stats: calculateStats(response.values),
+      }
     }
 
+    historySequence += 1
+    history.value.unshift({
+      id: historySequence,
+      action,
+      count: settings.count,
+      runs: settings.runs,
+      seed: settings.seed,
+      vapor: nextResult.vapor,
+      vdom: nextResult.vdom,
+      ratio: calculateRatio(nextResult.vapor.stats, nextResult.vdom.stats),
+    })
     currentProgress.value = 'Complete'
   } catch (error) {
     if (operation === operationSequence) {
@@ -205,38 +273,41 @@ async function runAction(action) {
   }
 }
 
-async function resetBenchmark() {
+async function stopBenchmark() {
+  if (!busy.value || stopping.value) return
+
   operationSequence += 1
   const operation = operationSequence
-  cancelPendingRequests()
-  busy.value = true
+  const renderer = currentRenderer.value
+  cancelPendingRequests('Operation stopped by user')
+  stopping.value = true
   errorMessage.value = ''
   currentAction.value = ''
-  currentRenderer.value = ''
-  currentProgress.value = 'Resetting both renderers'
-  results.vdom = null
-  results.vapor = null
+  currentProgress.value = copy.value.stopping
 
   try {
-    await Promise.all(
-      RENDERERS.map((renderer) => {
-        const requestId = createRequestId(renderer, 'reset')
-        return sendRequest(renderer, MESSAGE_TYPES.RESET, {
-          requestId,
-          count: settings.count,
-          seed: settings.seed,
-        })
-      }),
-    )
+    if (renderer) {
+      const requestId = createRequestId(renderer, 'stop')
+      await sendRequest(renderer, MESSAGE_TYPES.STOP_BENCHMARK, { requestId })
+    }
     if (operation === operationSequence) currentProgress.value = 'Ready'
   } catch (error) {
     if (operation === operationSequence) {
       errorMessage.value = error instanceof Error ? error.message : String(error)
-      currentProgress.value = 'Reset failed'
+      currentProgress.value = 'Stop failed'
     }
   } finally {
-    if (operation === operationSequence) busy.value = false
+    if (operation === operationSequence) {
+      busy.value = false
+      stopping.value = false
+      currentRenderer.value = ''
+    }
   }
+}
+
+function clearRecords() {
+  if (busy.value) return
+  history.value = []
 }
 
 function formatMs(value) {
@@ -316,8 +387,16 @@ onBeforeUnmount(() => {
         >
           {{ copy.actions[action.id] }}
         </button>
-        <button class="reset-button" type="button" :disabled="!bothReady" @click="resetBenchmark">
-          {{ copy.reset }}
+        <button class="stop-button" type="button" :disabled="!busy || stopping" @click="stopBenchmark">
+          {{ stopping ? copy.stopping : copy.stopTest }}
+        </button>
+        <button
+          class="clear-button"
+          type="button"
+          :disabled="busy || history.length === 0"
+          @click="clearRecords"
+        >
+          {{ copy.clearRecords }}
         </button>
       </div>
     </section>
@@ -345,20 +424,56 @@ onBeforeUnmount(() => {
       <article v-for="renderer in RENDERERS" :key="renderer" class="result-card">
         <div class="result-heading">
           <span class="result-renderer">{{ renderer.toUpperCase() }}</span>
-          <span v-if="results[renderer]" class="sample-count">{{ settings.runs }} samples</span>
         </div>
-        <dl v-if="results[renderer]" class="stats-grid">
-          <div><dt>avg</dt><dd>{{ formatMs(results[renderer].avg) }}</dd></div>
-          <div><dt>median</dt><dd>{{ formatMs(results[renderer].median) }}</dd></div>
-          <div><dt>min</dt><dd>{{ formatMs(results[renderer].min) }}</dd></div>
-          <div><dt>max</dt><dd>{{ formatMs(results[renderer].max) }}</dd></div>
-        </dl>
+        <div v-if="history.length" class="result-table-scroll">
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th>samples</th>
+                <th>avg</th>
+                <th>median</th>
+                <th>min</th>
+                <th>max</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="entry in history" :key="entry.id">
+                <td>{{ entry[renderer].samples }}</td>
+                <td>{{ formatMs(entry[renderer].stats.avg) }}</td>
+                <td>{{ formatMs(entry[renderer].stats.median) }}</td>
+                <td>{{ formatMs(entry[renderer].stats.min) }}</td>
+                <td>{{ formatMs(entry[renderer].stats.max) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <p v-else class="empty-result">{{ copy.emptyResult }}</p>
       </article>
 
       <article class="ratio-card">
-        <span class="result-renderer">{{ copy.ratio }}</span>
-        <strong>{{ ratio === null ? '—' : ratio.toFixed(3) }}</strong>
+        <div class="result-heading">
+          <span class="result-renderer">{{ copy.ratio }}</span>
+        </div>
+        <div v-if="history.length" class="ratio-chart-scroll">
+          <svg
+            class="ratio-chart"
+            role="img"
+            :aria-label="copy.ratioFormula"
+            :viewBox="`0 0 ${ratioChart.width} ${ratioChart.height}`"
+            :style="{ width: `${ratioChart.width}px` }"
+          >
+            <polyline
+              v-if="ratioChart.points.length > 1"
+              class="ratio-line"
+              :points="ratioChart.polyline"
+            />
+            <g v-for="point in ratioChart.points" :key="point.id" class="ratio-point">
+              <circle :cx="point.x" :cy="point.y" r="4" />
+              <text :x="point.x" :y="Math.max(18, point.y - 12)">{{ point.label }}</text>
+            </g>
+          </svg>
+        </div>
+        <p v-else class="empty-result ratio-empty">{{ copy.emptyRatio }}</p>
         <span>{{ copy.ratioFormula }}</span>
       </article>
     </section>

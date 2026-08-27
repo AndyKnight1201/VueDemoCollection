@@ -215,10 +215,16 @@ select {
   opacity: 0.43;
 }
 
-.action-bar .reset-button {
+.action-bar .stop-button {
   border-color: #56384b;
   color: #efb7c6;
   background: #2b1c2a;
+}
+
+.action-bar .clear-button {
+  border-color: #4c405d;
+  color: #cdbce3;
+  background: #241f34;
 }
 
 .dashboard-error {
@@ -260,18 +266,28 @@ select {
 }
 
 .results-panel {
+  --results-height: clamp(230px, 22vw, 340px);
+
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 190px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--results-height);
   gap: 10px;
+  height: var(--results-height);
 }
 
 .result-card,
 .ratio-card {
-  min-height: 92px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   padding: 10px 12px;
   border: 1px solid #1f304a;
   border-radius: 9px;
   background: rgb(12 22 38 / 88%);
+}
+
+.result-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .result-heading {
@@ -288,37 +304,56 @@ select {
   letter-spacing: 0.13em;
 }
 
-.sample-count {
-  color: #60718a;
-  font-size: 10px;
+.result-table-scroll {
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid #1c2a40;
+  scrollbar-color: #334665 #101a2b;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin: 0;
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
 }
 
-.stats-grid div {
-  min-width: 0;
-}
-
-.stats-grid dt {
+.result-table th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  padding: 7px 6px;
   color: #657790;
+  background: #0c1626;
   font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
   text-transform: uppercase;
 }
 
-.stats-grid dd {
-  margin: 2px 0 0;
+.result-table th:first-child,
+.result-table td:first-child {
+  width: 17%;
+}
+
+.result-table td {
+  padding: 8px 6px;
   overflow: hidden;
+  border-top: 1px solid rgb(69 91 125 / 25%);
   color: #eff5ff;
-  font-size: 13px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.result-table tbody tr:hover {
+  background: rgb(76 123 195 / 8%);
+}
+
+.result-table td:first-child {
+  color: #657790;
 }
 
 .empty-result {
@@ -329,18 +364,52 @@ select {
 
 .ratio-card {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   background:
     linear-gradient(135deg, rgb(43 90 158 / 22%), rgb(35 111 88 / 18%)),
     #0c1626;
 }
 
-.ratio-card strong {
-  align-self: center;
-  color: #f5f9ff;
-  font-size: 25px;
+.ratio-chart-scroll {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-color: #3d6070 #10202d;
+}
+
+.ratio-chart {
+  display: block;
+  height: 100%;
+  min-width: 100%;
+}
+
+.ratio-line {
+  fill: none;
+  stroke: #77dfbd;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.ratio-point circle {
+  fill: #dffbf2;
+  stroke: #2fb98e;
+  stroke-width: 2;
+}
+
+.ratio-point text {
+  fill: #f5f9ff;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.ratio-empty {
+  align-self: center;
+  margin: 0;
+  text-align: center;
 }
 
 .ratio-card > span:last-child {
@@ -362,5 +431,9 @@ footer {
 
   .settings-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .results-panel {
+    --results-height: 230px;
   }
 }

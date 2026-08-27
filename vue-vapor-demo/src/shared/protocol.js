@@ -7,8 +7,8 @@ export const MESSAGE_TYPES = Object.freeze({
   BENCHMARK_PROGRESS: 'BENCHMARK_PROGRESS',
   BENCHMARK_RESULT: 'BENCHMARK_RESULT',
   BENCHMARK_ERROR: 'BENCHMARK_ERROR',
-  RESET: 'RESET',
-  RESET_DONE: 'RESET_DONE',
+  STOP_BENCHMARK: 'STOP_BENCHMARK',
+  STOP_DONE: 'STOP_DONE',
 })
 
 export const RENDERERS = Object.freeze(['vdom', 'vapor'])
@@ -47,14 +47,10 @@ export function validateRunPayload(payload) {
   return { ok: true }
 }
 
-export function validateResetPayload(payload) {
+export function validateStopPayload(payload) {
   if (!isRecord(payload)) return { ok: false, error: 'Payload must be an object' }
   if (typeof payload.requestId !== 'string' || payload.requestId.length === 0) {
     return { ok: false, error: 'requestId is required' }
-  }
-  if (!ROW_COUNTS.includes(payload.count)) return { ok: false, error: 'Unsupported row count' }
-  if (!Number.isInteger(payload.seed) || payload.seed < 0 || payload.seed > MAX_SEED) {
-    return { ok: false, error: 'seed must be an unsigned 32-bit integer' }
   }
   return { ok: true }
 }

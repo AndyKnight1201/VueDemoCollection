@@ -1,6 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { validateResetPayload, validateRunPayload } from '../src/shared/protocol.js'
+import {
+  MESSAGE_TYPES,
+  validateRunPayload,
+  validateStopPayload,
+} from '../src/shared/protocol.js'
 
 const validRun = Object.freeze({
   requestId: 'benchmark-vdom-1',
@@ -34,11 +38,13 @@ test('validateRunPayload enforces unsigned 32-bit seeds and request IDs', () => 
   assert.equal(validateRunPayload({ ...validRun, seed: 1.5 }).ok, false)
 })
 
-test('validateResetPayload validates count, seed, and request ID', () => {
-  assert.deepEqual(
-    validateResetPayload({ requestId: 'reset-1', count: 1_000, seed: 0 }),
-    { ok: true },
-  )
-  assert.equal(validateResetPayload({ requestId: 'reset-1', count: 2_000, seed: 0 }).ok, false)
-  assert.equal(validateResetPayload({ requestId: '', count: 1_000, seed: 0 }).ok, false)
+test('stop protocol exposes the expected message types', () => {
+  assert.equal(MESSAGE_TYPES.STOP_BENCHMARK, 'STOP_BENCHMARK')
+  assert.equal(MESSAGE_TYPES.STOP_DONE, 'STOP_DONE')
+})
+
+test('validateStopPayload requires a non-empty request ID', () => {
+  assert.deepEqual(validateStopPayload({ requestId: 'stop-1' }), { ok: true })
+  assert.equal(validateStopPayload({ requestId: '' }).ok, false)
+  assert.equal(validateStopPayload(null).ok, false)
 })

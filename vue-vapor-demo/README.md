@@ -12,12 +12,12 @@
 
 本專案固定使用：
 
-- `vue`: `3.6.0-rc.4`
-- `@vue/compiler-sfc`: `3.6.0-rc.4`
+- `vue`: `3.6.0-rc.5`
+- `@vue/compiler-sfc`: `3.6.0-rc.5`
 - `vite`: `8.2.2`
 - `@vitejs/plugin-vue`: `6.0.8`
 
-專案內的 `.npmrc` 啟用 `legacy-peer-deps=true`。原因是 npm 的 prerelease semver 規則不會把 `3.6.0-rc.4` 視為符合 `@vitejs/plugin-vue` 宣告的穩定版 `vue ^3.2.25` peer range；本 Demo 的 Vue runtime 與 compiler 仍各自鎖定同一個 RC 版本。
+專案內的 `.npmrc` 啟用 `legacy-peer-deps=true`。原因是 npm 的 prerelease semver 規則不會把 `3.6.0-rc.5` 視為符合 `@vitejs/plugin-vue` 宣告的穩定版 `vue ^3.2.25` peer range；本 Demo 的 Vue runtime 與 compiler 仍各自鎖定同一個 RC 版本。
 
 ## 安裝與執行
 
@@ -76,6 +76,8 @@ Dashboard 會先完成 VDOM 的全部測量，再執行 Vapor，避免兩個 ren
 - max
 - ratio：`Vapor avg / VDOM avg`
 
+每次完整完成 VDOM 與 Vapor 測量後，Dashboard 會在頁面內新增一筆歷史紀錄，並把 ratio 加入折線圖。重新整理頁面或使用 **Clear Records** 會清空紀錄；被 **Stop Test** 中止的未完成測試不會寫入歷史。
+
 時間包含 action 本身、Vue reactive update 與指定的 render settle；不包含 baseline 準備、`postMessage`、統計計算。此方法不強制讀取 layout，也不保證涵蓋完整 paint/composite 成本。
 
 ## 現場展示流程
@@ -84,7 +86,7 @@ Dashboard 會先完成 VDOM 的全部測量，再執行 Vapor，避免兩個 ren
 2. 選擇 10,000 rows、Warmup 2、Measured Runs 10、Seed 2026。
 3. 執行 **Update 10%**，比較兩側 avg / median / min / max。
 4. 執行 **Shuffle**，觀察 keyed list reconciliation 的相對結果。
-5. 使用 **Reset** 清除統計並重建相同 baseline。
+5. 使用 **Stop Test** 中止進行中的測試；使用 **Clear Records** 清除頁面內累積的結果紀錄。
 6. 強調 Vapor 是 opt-in，結果只代表目前裝置、瀏覽器及這組 workload。
 
 ## Protocol
@@ -97,14 +99,14 @@ Dashboard 會先完成 VDOM 的全部測量，再執行 Vapor，避免兩個 ren
 - `BENCHMARK_PROGRESS`
 - `BENCHMARK_RESULT`
 - `BENCHMARK_ERROR`
-- `RESET`
-- `RESET_DONE`
+- `STOP_BENCHMARK`
+- `STOP_DONE`
 
 所有 command/result 都帶有 `requestId`；父頁會核對 origin 與 iframe window，子頁只接受同源 parent。單一 renderer 超過 180 秒未完成時，Dashboard 會顯示 timeout 並解除 UI 鎖定。
 
 ## 已知限制
 
-- Vue `3.6.0-rc.4` 是 RC 版本，行為可能與日後正式版不同。
+- Vue `3.6.0-rc.5` 是 RC 版本，行為可能與日後正式版不同。
 - 瀏覽器擴充套件、DevTools、CPU throttling、背景分頁、電源模式與系統負載都可能影響數字。
 - VDOM 與 Vapor 採序列測量；溫度、JIT 與先後順序仍可能造成偏差。
 - Row UI 刻意不用 `<table>`，但 DOM 數量與 CSS 仍是 workload 的一部分。
